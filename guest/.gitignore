@@ -1,0 +1,4 @@
+/*.log
+/*.fd
+/image/mnt
+/image/*.qcow2
