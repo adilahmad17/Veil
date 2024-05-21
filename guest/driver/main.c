@@ -20,15 +20,20 @@
 
 #include "common.h"
 
-bool logging_service = false;
-module_param(logging_service, bool, S_IRUSR);
+bool logging_service=false;
+module_param(logging_service, bool, S_IWUSR);
 
 static int __init veil_driver_init(void) {
     veil_driver_print("[*] Hello World!\n");
+
+    // Set up IOCTL for userspace access
+    if (!ioctl_init()) return -1;
+
     // Setup the logging service
     if (logging_service) {
         if (!logging_service_init()) {return -1;}
     }
+    
     return 0;
 }
 
@@ -37,6 +42,9 @@ static void __exit veil_driver_fini(void) {
     // Stop the logging service
     if (logging_service)
         logging_service_fini();
+
+    // stop ioctl
+    ioctl_fini();
 }
 
 module_init(veil_driver_init);

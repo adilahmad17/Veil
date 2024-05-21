@@ -1,4 +1,4 @@
-veil_driver-y := main.o log.o
+veil_driver-y := main.o log.o ioctl.o
 obj-m += veil_driver.o
 
 all:
@@ -6,6 +6,7 @@ all:
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 install:
+	sudo rmmod veil_driver || true
 	sudo insmod veil_driver.ko
 install-logging:
 	sudo insmod veil_driver.ko logging_service = true

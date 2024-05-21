@@ -13,8 +13,13 @@ extern struct svsm_caa *svsm_caa;
 #define veil_driver_print(args...) printk("veil-driver: " args)
 
 // defined: log.c
+char* retrieve_logs(unsigned long size, unsigned long offset);
 bool logging_service_init(void);
 void logging_service_fini(void);
+
+// defined: ioctl.c
+bool ioctl_init(void);
+void ioctl_fini(void);
 
 // external definitions from the kernel source below
 // defined: guest/linux/kernel/audit_veil.c
