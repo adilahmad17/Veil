@@ -1,0 +1,14 @@
+_dep/*
+.vscode/
+
+*.o
+*.a
+
+spec/arg_spec.gen
+spec/call_spec.gen
+spec/spec.dbg
+src/rulegen/log
+test/test
+
+openssl/
+p7zip/

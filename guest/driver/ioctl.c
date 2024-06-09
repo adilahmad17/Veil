@@ -34,14 +34,16 @@
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
 
-#include "common.h"
 #include "ioctl-defines.h"
+#include "common.h"
 
 static dev_t dev = 0;
 static struct class* vmod_class;
 static struct cdev   vmod_cdev;
 
 struct ioctl_dump_logs ioctl_dl;
+struct ioctl_enclave_request ioctl_er;
+struct ioctl_establish_ghcb_request ioctl_egr;
 
 /* ioctl handler */
 static long vmod_ioctl(struct file *f, unsigned int cmd, unsigned long arg) {
@@ -79,6 +81,46 @@ static long vmod_ioctl(struct file *f, unsigned int cmd, unsigned long arg) {
             }
 
             veil_driver_print("success: logs dumped.\n");
+            break;
+        
+        case ENCLAVE_TEST:
+            veil_driver_print("ioctl: ENCLAVE_TEST\n");
+
+            /* copy data from user */
+            if (copy_from_user((void*) &ioctl_er, (void*) arg, 
+                    sizeof(struct ioctl_enclave_request))) {
+                veil_driver_print("error: user didnt send correct ENCLAVE_TEST message.\n");
+                return -1;
+            }
+
+            /* call the function that handles enclave setup */
+            create_enclave(&ioctl_er);
+            
+            break;
+        case ESTABLISH_GHCB:
+            veil_driver_print("IOCTL: ESTABLISH_GHCB\n");
+
+            /* copy data from user */
+            if (copy_from_user((void*) &ioctl_egr, (void*) arg, 
+                    sizeof(struct ioctl_establish_ghcb_request))) {
+                veil_driver_print("Error: user didnt send correct message.\n");
+                return -1;
+            }
+
+            /* call a function to get an unencrypted memory region */
+            establish_ghcb(&ioctl_egr);
+
+            /* copy data to user */
+            if (copy_to_user((void*) arg, (void*) &ioctl_egr, 
+                    sizeof(struct ioctl_establish_ghcb_request))) {
+                veil_driver_print("Error: could not write the response.\n");
+                return -1;
+            }
+            break;
+        
+        case ENCLAVE_TEST_TERMINATE:
+            veil_driver_print("IOCTL: ENCLAVE_TEST_TERMINATE\n");
+            remove_ghcb();
             break;
         
         default: 

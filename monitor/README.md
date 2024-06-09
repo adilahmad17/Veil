@@ -2,7 +2,7 @@
 
 This directory contains the code for Veil's security monitor and services integrated into AMD's Secure VM Service Module.
 
-## Directory Structure (TODO)
+## Directory Structure
 
 ## Steps
 

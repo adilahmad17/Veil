@@ -1,4 +1,4 @@
-veil_driver-y := main.o log.o ioctl.o
+veil_driver-y := main.o log.o ioctl.o enclave.o ghcb.o helpers.o
 obj-m += veil_driver.o
 
 all:

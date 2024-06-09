@@ -1,0 +1,103 @@
+accept4
+access
+alarm
+bind
+brk
+chdir
+chmod
+clock_nanosleep
+close
+connect
+dup
+dup2
+epoll_create1
+epoll_ctl$EPOLL_CTL_ADD
+epoll_pwait
+eventfd2
+!execve
+exit
+exit_group
+faccessat
+fadvise64
+fchmod
+fchown
+fcntl$getflags: 1
+fcntl$lock: 1
+fcntl$setflags: 1
+fdatasync
+flock
+fstat
+fsync
+ftruncate
+futex
+getcwd
+getdents64
+getegid
+geteuid
+getgid
+getpgrp
+getpid
+getppid
+getrandom
+getsockname
+getsockopt
+gettid
+getuid
+ioctl$int_in: 1
+ioctl$int_out: 1
+ioctl$FIOCLEX: 1
+ioctl$FIONCLEX: 1
+ioctl$FITHAW: 1
+ioctl$TIOCGWINSZ: 1
+kill
+listen
+lseek
+lstat
+madvise
+mkdir
+mmap
+mprotect
+munmap
+newfstatat
+open
+openat
+pipe
+pipe2
+poll
+ppoll
+pread64
+prlimit64
+pwrite64
+read
+readlink
+recvfrom
+recvmsg
+rmdir
+rt_sigaction
+rt_sigprocmask
+rt_sigreturn
+sched_getaffinity
+sched_setaffinity
+sched_setscheduler
+select
+setsockopt
+sendmmsg
+sendmsg
+sendto
+set_robust_list
+set_tid_address
+socket
+socketpair
+stat
+statfs
+symlink
+sysinfo
+times
+uname
+unlink
+unlinkat
+utimensat
+wait4
+write
+writev
+shutdown

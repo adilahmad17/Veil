@@ -68,6 +68,7 @@ char* retrieve_logs(unsigned long size, unsigned long offset) {
 	struct svsm_caa *this_caa = this_cpu_read(svsm_caa);
     int chunksize = 128;
     int retrieved = 0;
+    char* kernel_buffer;
 
     // sanity check(s)
     if (!logging_service_initialized) {
@@ -75,7 +76,7 @@ char* retrieve_logs(unsigned long size, unsigned long offset) {
         return NULL;
     }
 
-    char* kernel_buffer = vmalloc(size);
+    kernel_buffer = vmalloc(size);
     if (!kernel_buffer) {
         veil_driver_print("Error: kernel buffer could not be allocated.\n");
         return NULL;

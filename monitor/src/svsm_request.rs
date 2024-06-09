@@ -67,6 +67,8 @@ const SVSM_LOGGING_SERVICE_INIT: u32 = 11;
 const SVSM_LOGGING_SERVICE_PROT: u32 = 12;
 /// 13
 const SVSM_LOGGING_SERVICE_DUMP: u32 = 13;
+/// 14 
+const SVSM_ENCLAVE_SERVICE_CREATE: u32 = 14;
 
 /// 0
 const SVSM_SUCCESS: u64 = 0;
@@ -775,7 +777,11 @@ unsafe fn handle_request(vmsa: *mut Vmsa) {
             SVSM_LOGGING_SERVICE_PROT => protect_log_entry(vmsa),
             SVSM_LOGGING_SERVICE_DUMP => dump_logs(vmsa),
             
-            // VEIL: Enclave Service Requests (TODO)
+            // VEIL: Enclave Service Requests (WIP)
+            SVSM_ENCLAVE_SERVICE_CREATE => create_enclave_test(vmsa),
+            // SVSM_ENCLAVE_SERVICE_RUN    => create_enlave_test(vmsa),
+            // SVSM_ENCLAVE_SERVICE_RUN    => create_enlave_test(vmsa),
+
             // VEIL: Kernel Code Integrity Service Requests (TODO)
             
             _ => (*vmsa).set_rax(SVSM_ERR_UNSUPPORTED_CALLID),

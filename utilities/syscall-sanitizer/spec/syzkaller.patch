@@ -1,0 +1,214 @@
+diff --git a/sys/linux/futex.txt b/sys/linux/futex.txt
+index 9fd161e51..196221a05 100644
+--- a/sys/linux/futex.txt
++++ b/sys/linux/futex.txt
+@@ -3,8 +3,8 @@
+ 
+ include <linux/futex.h>
+ 
+-futex(addr ptr[in, int32[0:2]], op flags[futex_op], val int32[0:2], timeout ptr[in, timespec], addr2 ptr[in, int32[0:2]], val3 int32[0:2])
+-set_robust_list(head ptr[in, robust_list_head], len len[head])
++futex(addr vma, op flags[futex_op], val int32[0:2], timeout ptr[in, timespec], addr2 vma, val3 int32[0:2])
++set_robust_list(head vma, len len[head])
+ get_robust_list(pid pid, head ptr[in, ptr[out, robust_list_head]], len ptr[inout, len[head, intptr]])
+ 
+ robust_list_head {
+diff --git a/sys/linux/socket.txt b/sys/linux/socket.txt
+index f2cc673fb..ede6ad709 100644
+--- a/sys/linux/socket.txt
++++ b/sys/linux/socket.txt
+@@ -133,17 +133,27 @@ sockaddr_storage_generic {
+ }
+ 
+ send_msghdr {
+-	msg_name	ptr[in, sockaddr_storage, opt]
++	msg_name	ptr[in, array[int8], opt]
+ 	msg_namelen	len[msg_name, int32]
+ 	msg_iov		ptr[in, array[iovec_in]]
+ 	msg_iovlen	len[msg_iov, intptr]
+-	msg_control	ptr[in, array[cmsghdr], opt]
++	# Looks like some random padding bytes are allowed in this buffer, so the
++	# orignal grammar here is not accurate. In fact, it can be even dangerous.
++	#
++	# In this case, with orignal grammar, SCSAN will take those padding bytes
++	# as a `cmsghdr`, then parse it to get its length (since its length is dynamic)
++	# to do copying. Since these padding bytes are just random, it cause SCSAN to fail.
++	#
++	# Change it to a bytes bufffer. `cmsghdr` does not contain pointers or 
++	# length that resolves to types outside, so this should be fine.
++	msg_control	ptr[in, array[int8], opt]
++	# msg_control	ptr[in, array[cmsghdr], opt]
+ 	msg_controllen	bytesize[msg_control, intptr]
+ 	msg_flags	const[0, int32]
+ }
+ 
+ msghdr_sock {
+-	msg_name	ptr[in, sockaddr_storage, opt]
++	msg_name	ptr[in, array[int8], opt]
+ 	msg_namelen	len[msg_name, int32]
+ 	msg_iov		ptr[in, array[iovec_in]]
+ 	msg_iovlen	len[msg_iov, intptr]
+@@ -163,7 +173,7 @@ mmsghdr_sock {
+ }
+ 
+ recv_msghdr {
+-	msg_name	ptr[out, sockaddr_storage, opt]
++	msg_name	ptr[out, array[int8], opt]
+ 	msg_namelen	len[msg_name, int32]
+ 	msg_iov		ptr[in, array[iovec_out]]
+ 	msg_iovlen	len[msg_iov, intptr]
+diff --git a/sys/linux/sys.txt b/sys/linux/sys.txt
+index f6db0ab4f..78cbf6855 100644
+--- a/sys/linux/sys.txt
++++ b/sys/linux/sys.txt
+@@ -93,6 +93,7 @@ syz_execute_func(text ptr[in, text[target]])
+ # Exclude /sys/power/state as reported in https://lkml.org/lkml/2021/5/27/653
+ openat$sysfs(fd const[AT_FDCWD], dir ptr[in, glob["/sys/**/*:-/sys/power/state"]], flags flags[open_flags], mode flags[open_mode]) fd
+ 
++access(file ptr[in, filename], mode int32) fd
+ open(file ptr[in, filename], flags flags[open_flags], mode flags[open_mode]) fd
+ # Just so that we have something that creates fd_dir resources.
+ open$dir(file ptr[in, filename], flags flags[open_flags], mode flags[open_mode]) fd_dir
+@@ -215,8 +216,10 @@ restart_syscall()
+ # Almighty!
+ ioctl(fd fd, cmd int32, arg buffer[in])
+ 
+-ioctl$int_in(fd fd, cmd flags[ioctl_int_in], v ptr[in, int64])
+-ioctl$int_out(fd fd, cmd flags[ioctl_int_out], v ptr[out, intptr])
++# The 3rd arg is a pointer to int, not int64. Looks like a bug in syzkaller spec.
++# It is critical to our systems it can cause us to access invalid memory in some cases.
++ioctl$int_in(fd fd, cmd flags[ioctl_int_in], v ptr[in, int32])
++ioctl$int_out(fd fd, cmd flags[ioctl_int_out], v ptr[out, int32])
+ 
+ ioctl$FIOCLEX(fd fd, cmd const[FIOCLEX])
+ ioctl$FIONCLEX(fd fd, cmd const[FIONCLEX])
+@@ -358,7 +361,7 @@ setgroups(size len[list], list ptr[in, array[gid]])
+ personality(persona flags[personality_flags])
+ # Don't mess with parent (fuzzer). If we ptrace attach to it, it will hang.
+ # If we setrlimit for parent, it will misbehave. Killing - the same. Nothing good.
+-#getppid() pid
++getppid() pid
+ #getsid(pid pid) pid
+ #setsid() pid
+ 
+@@ -399,7 +402,8 @@ pivot_root(new_root ptr[in, filename], put_old ptr[in, filename])
+ sysfs$1(option const[1], fsname ptr[in, string])
+ sysfs$2(option const[2], fsindex intptr, fsname buffer[out])
+ sysfs$3(option const[3])
+-statfs(path ptr[in, filename], buf buffer[out])
++# 120 is the sizeof `struct statfs` on amd64. Does not scale to other arch.
++statfs(path ptr[in, filename], buf ptr[out, array[int8, 120]])
+ fstatfs(fd fd, buf buffer[out])
+ 
+ uselib(lib ptr[in, filename])
+@@ -408,8 +412,10 @@ finit_module(fd fd, args ptr[in, string], flags flags[finit_module_flags])
+ delete_module(name ptr[in, string], flags flags[delete_module_flags])
+ kexec_load(entry intptr, nr_segments len[segments], segments ptr[in, array[kexec_segment]], flags flags[kexec_load_flags])
+ syslog(cmd flags[syslog_cmd], buf ptr[out, array[int8], opt], len len[buf])
+-uname(buf buffer[out])
+-sysinfo(info buffer[out])
++# 390 is the sizeof `struct utsname` on amd64. Does not scale to other arch.
++uname(buf ptr[out, array[int8, 390]])
++# 112 is the sizeof `struct sysinfo` on amd64. Does not scale to other arch.
++sysinfo(info ptr[out, array[int8, 112]])
+ ustat(dev intptr, buf ptr[out, ustat])
+ acct(filename ptr[in, filename, opt])
+ 
+@@ -462,7 +468,7 @@ clock_settime(id flags[clock_id], tp ptr[in, timespec])
+ clock_adjtime(id flags[clock_id], tx ptr[in, timex])
+ clock_getres(id flags[clock_id], tp ptr[out, timespec])
+ clock_nanosleep(id flags[clock_id], flags flags[timer_flags], rqtp ptr[in, timespec], rmtp ptr[out, timespec, opt])
+-rt_sigaction(sig signalno, act ptr[in, sigaction], oact ptr[out, sigaction, opt], sigsetsize len[fake], fake ptr[out, sigset_t])
++rt_sigaction(sig signalno, act ptr[in, sigaction], oact ptr[out, sigaction, opt], sigsetsize intptr)
+ rt_sigprocmask(how flags[sigprocmask_how], nset ptr[in, sigset_t], oset ptr[out, sigset_t, opt], sigsetsize len[nset])
+ rt_sigreturn()
+ rt_sigpending(set ptr[out, sigset_t], sigsetsize len[set])
+@@ -485,7 +491,7 @@ waitid$P_PIDFD(which const[P_PIDFD], pidfd fd_pidfd, infop ptr[out, siginfo, opt
+ wait4(pid pid, status ptr[out, int32, opt], options flags[wait_options], ru ptr[out, rusage, opt])
+ times(buf ptr[out, tms])
+ # Can send signals to all processes (pid=-1).
+-#kill(pid pid, sig signalno)
++kill(pid pid, sig signalno)
+ 
+ set_thread_area(info ptr[in, user_desc])
+ get_thread_area(info ptr[in, user_desc])
+@@ -495,7 +501,7 @@ modify_ldt$read_default(func const[2], buf buffer[out], len len[buf])
+ modify_ldt$write2(func const[17], buf ptr[in, user_desc], len len[buf])
+ process_vm_readv(pid pid, loc_vec ptr[in, array[iovec_out]], loc_vlen len[loc_vec], rem_vec ptr[in, array[iovec_out]], rem_vlen len[rem_vec], flags const[0])
+ process_vm_writev(pid pid, loc_vec ptr[in, array[iovec_out]], loc_vlen len[loc_vec], rem_vec ptr[in, array[iovec_out]], rem_vlen len[rem_vec], flags const[0])
+-set_tid_address(tidptr ptr[out, int32])
++set_tid_address(tidptr vma)
+ getpriority(which flags[priority_which], who pid)
+ setpriority(which flags[priority_which], who pid, prio intptr)
+ sched_getscheduler(pid pid)
+@@ -681,15 +687,14 @@ type iovec_out iovec[out, array[int8]]
+ stat {
+ 	st_dev		intptr
+ 	st_ino		intptr
++	st_nlink	int64
+ 	st_mode		int32
+-	st_nlink	int32
+ 	st_uid		uid
+ 	st_gid		gid
++	__pad0		const[0, int32]
+ 	st_rdev		intptr
+-	__pad1		const[0, intptr]
+ 	st_size		intptr
+-	st_blksize	int32
+-	__pad2		const[0, int32]
++	st_blksize	int64
+ 	st_blocks	intptr
+ 	st_atime	intptr
+ 	st_atime_nsec	intptr
+@@ -697,8 +702,9 @@ stat {
+ 	st_mtime_nsec	intptr
+ 	st_ctime	intptr
+ 	st_ctime_nsec	intptr
+-	__unused4	const[0, int32]
+-	__unused5	const[0, int32]
++	__unused4	const[0, int64]
++	__unused5	const[0, int64]
++	__unused6	const[0, int64]
+ }
+ 
+ statx {
+@@ -1106,9 +1112,9 @@ rlimit {
+ }
+ 
+ sigaction {
+-	sa_handler	ptr[in, text[target]]
++	sa_handler	vma
+ 	sa_flags	flags[sigaction_flags, intptr]
+-	sa_restorer	ptr[in, text[target]]
++	sa_restorer	vma
+ 	sa_mask		sigset_t
+ }
+ 
+diff --git a/sys/linux/sys.txt.const b/sys/linux/sys.txt.const
+index 501c165ac..1ee1091d3 100644
+--- a/sys/linux/sys.txt.const
++++ b/sys/linux/sys.txt.const
+@@ -594,6 +594,7 @@ _LINUX_CAPABILITY_VERSION_1 = 429392688
+ _LINUX_CAPABILITY_VERSION_2 = 537333798
+ _LINUX_CAPABILITY_VERSION_3 = 537396514
+ _NSIG_WORDS = 1, 386:arm:mips64le:2
++__NR_access = amd64:21
+ __NR_acct = 51, amd64:163, arm64:riscv64:89, mips64le:5158
+ __NR_alarm = 27, amd64:37, arm:arm64:riscv64:???, mips64le:5037
+ __NR_brk = 45, amd64:12, arm64:riscv64:214, mips64le:5012
+@@ -661,6 +662,7 @@ __NR_getitimer = 105, amd64:36, arm64:riscv64:102, mips64le:5035
+ __NR_getpgid = 132, amd64:121, arm64:riscv64:155, mips64le:5119
+ __NR_getpgrp = 65, amd64:111, arm64:riscv64:???, mips64le:5109
+ __NR_getpid = 20, amd64:39, arm64:riscv64:172, mips64le:5038
++__NR_getppid = amd64: 110
+ __NR_getpriority = 96, amd64:140, arm64:riscv64:141, mips64le:5137
+ __NR_getrandom = 278, 386:355, amd64:318, arm:384, mips64le:5313, ppc64le:359, s390x:349
+ __NR_getresgid = 150, 386:arm:171, amd64:120, mips64le:5118, ppc64le:170, s390x:211
+@@ -677,6 +679,7 @@ __NR_ioprio_get = 31, 386:290, amd64:252, arm:315, mips64le:5274, ppc64le:274, s
+ __NR_ioprio_set = 30, 386:289, amd64:251, arm:314, mips64le:5273, ppc64le:273, s390x:282
+ __NR_kcmp = 272, 386:349, amd64:312, arm:378, mips64le:5306, ppc64le:354, s390x:343
+ __NR_kexec_load = 104, 386:283, amd64:246, arm:347, mips64le:5270, ppc64le:268, s390x:277
++__NR_kill = amd64: 62
+ __NR_lchown = 16, amd64:94, arm64:riscv64:???, mips64le:5092, s390x:198
+ __NR_link = 9, amd64:86, arm64:riscv64:???, mips64le:5084
+ __NR_linkat = 37, 386:303, amd64:265, arm:330, mips64le:5255, ppc64le:294, s390x:296

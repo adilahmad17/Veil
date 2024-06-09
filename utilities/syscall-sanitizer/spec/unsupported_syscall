@@ -1,0 +1,18 @@
+arch_prctl: dispatch
+clone: need user specified handler
+fcntl: dispatch
+prctl: dispatch
+ioctl\$ASHMEM: ioctl$ASHMEM_GET_NAME contains buffer with unresolved length. Is is deprecated in latest kernel (>5.19).
+ioctl\$BINDER: binder_write_cmd is analyze union, it might be binder_cmd_transaction, which contains pointers.
+ioctl\$BLK: blk_zone_report is a var len struct which contains a length arg resolving to the last array field. We need to support this in future.
+ioctl\$BTRFS: btrfs_qgroup_inherit is a var len struct which contains a length arg resolving to the last array field. We need to support this in future.
+ioctl\$CAPI_MANUFACTURER_CMD: capi_manufacturer_cmd `data` field does not have a length arg that can resolve to it.
+ioctl\$CDROM: lots of bit fields, which are not supported.
+ioctl\$CREATE_COUNTERS: ib_uverbs_create_counters_cmd `len` field resolve to `ib_uverbs_create_counters_cmd`? weird.
+ioctl\$DESTROY_COUNTERS: same as above.
+ioctl\$READ_COUNTERS: same as above.
+ioctl\$DRM_IOCTL: .
+ioctl\$DVD: bitfield.
+ioctl\$EVIO: var struct.
+ioctl\$EXT4: len resolve in var struct.
+ioctl\$FBIO: incomplete len in fb_cmap_user. current len spec cannot resolve to multiple arguments.
