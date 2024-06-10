@@ -9,11 +9,6 @@ The supported system calls are listed [here](spec/syscall). Another [list](spec/
 
 ## Build
 
-Download the source code:
-```
-git clone --recurse-submodules git@github.com:rssys/syscall-sanitizer.git
-```
-
 In `script` directory, run `install_go.sh` to install the go compiler.
 
 In `syzkaller` directory, run
